@@ -1,0 +1,57 @@
+name: eureka-server CI
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+
+    env:
+      CONFIG_GIT_USERNAME: "YeonSM" #보안상 현재 OS의 환경변수 이용하는게 좋다.
+      CONFIG_GIT_TOKEN: "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"
+
+    steps:
+      # 1)지금 개발자가 올린 소스를 가져가 !! (임시 리눅스가..)
+      - name: Checkout
+        uses: actions/checkout@v4
+      # 2) JDK 21 설치
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+      # 3) Gradle 이용해
+      - name: Gradle Cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle','**/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
+
+      # 4)gradlew 실행권한 부여
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+      # 5) Test 실행 !!!!!!!! 가장 중요
+      - name: Test
+        run: ./gradlew test
+      # 6) JAR 생성
+      - name: Build bootJar
+        run: ./gradlew clean bootJar -x test
+      # 7) JAR 업로드 (선택)
+      - name: Upload bootJar artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: config-server-jar
+          path: build/libs/*.jar  # 깃헙의 임시 리눅스 위치시킴

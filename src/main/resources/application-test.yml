@@ -1,0 +1,13 @@
+spring:
+  application:
+    name: saga-member-service
+
+  config:
+    # CI 테스트에서는 Config Server 의 존재를 없애버려야 하므로..
+    import: "optional:none"
+
+  cloud:
+    config:
+      discovery:
+        enabled: false
+        fail-fast: false
