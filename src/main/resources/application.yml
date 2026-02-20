@@ -1,0 +1,16 @@
+
+# 포트 번호는 깃헙 repo 에다가
+spring:
+  application:
+    name: saga-eureka
+
+#  # 아래의 프로파일 명이  Config Server로 하여금 어떤 yml을 이러
+#  profiles:
+#    active: dev
+
+  config:
+    import: "optional:configserver:http://localhost:8881"
+
+logging:
+  level:
+    root: info
