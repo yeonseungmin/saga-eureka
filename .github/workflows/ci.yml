@@ -10,17 +10,34 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
+#DokerImage 를 GHCR에 넣기 위한 권한 부여
+permissions:
+  contents: read # 깃헙이 Repository 소스 코드를 읽을 수 있도록 권한부여
+  packages: write # GHCR 에 대한 패키지 쓰기 권한 부여
+
 jobs:
   build-test:
     runs-on: ubuntu-latest
 
     env:
-      CONFIG_GIT_USERNAME: "YeonSM" #보안상 현재 OS의 환경변수 이용하는게 좋다.
-      CONFIG_GIT_TOKEN: "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"
+      #      CONFIG_GIT_USERNAME: "YeonSM" #보안상 현재 OS의 환경변수 이용하는게 좋다.
+      #      CONFIG_GIT_TOKEN: "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"
+      SERVICE_NAME: saga-config # 임의로 정할 수 있지만, 프로젝트명 (애플리케이션 명) 이 권장사항
+      GRADLE_OPTS: "-Dorg.gradle.deamon=false -Dorg.gradle.jvmargs=-Xmx2g" # 데몬 사용 안함 및 메모리 2GB 설정
+      SPRING_PROFILES_ACTIVE: test  # CI 단계에서는 프로파일을 test로 진행, CD 단계에서 prod
+
+      #개발자가 임의로 변수를 선언할 수 있다.
+      # GHCR 주소/ 이미지소유자/ 이미지명/: 이미지 태크
+      IMAGE_REGISTRY: ghcr.io
+      IMAGE_OWNER: ${{ github.repository_owner }} #내장된 전역변수 집합인 GitHub Context 중 하나임
+      IMAGE_NAME: saga-eureka
+      IMAGE_TAG: ${{ github.sha }} # 워크 플로우를 커밋 시 할당된 고유 ID (SHA-1 해쉬값)
+
+
 
     steps:
       # 1)지금 개발자가 올린 소스를 가져가 !! (임시 리눅스가..)
-      - name: Checkout
+      - name: Checkout  임시리눅스로 소스 가져오기
         uses: actions/checkout@v4
       # 2) JDK 21 설치
       - name: Set up JDK 21
@@ -29,7 +46,7 @@ jobs:
           distribution: 'temurin'
           java-version: '21'
       # 3) Gradle 이용해
-      - name: Gradle Cache
+      - name: Gradle Cache 그래들 효율적으로 사용하기
         uses: actions/cache@v4
         with:
           path: |
@@ -41,17 +58,49 @@ jobs:
             ${{ runner.os }}-gradle-
 
       # 4)gradlew 실행권한 부여
-      - name: Grant execute permission for gradlew
+      - name: Grant execute permission for gradlew   임시 리눅스에 자바 깔기 -JAR 만들기 위해
         run: chmod +x gradlew
+
+        # 나만의 출력
+      - name: 환경변수 출력해보기
+        run: |
+          echo "SERVICE_NAME 은 ${SERVICE_NAME}"
+          echo "SPRING_PROFILES_ACTIVE 은 ${SPRING_PROFILES_ACTIVE}"
+        
+
       # 5) Test 실행 !!!!!!!! 가장 중요
-      - name: Test
+      - name: Test    코드 잘 돌아가는지 테스트 해보기
         run: ./gradlew test
       # 6) JAR 생성
-      - name: Build bootJar
+      - name: Build bootJar   Jar 파일로 만들기
         run: ./gradlew clean bootJar -x test
       # 7) JAR 업로드 (선택)
-      - name: Upload bootJar artifact
+      - name: Upload bootJar artifact  만들어진 Jar 를 보관하는 공간 artifact
         uses: actions/upload-artifact@v4
         with:
-          name: config-server-jar
+          name: ${{env.SERVICE_NAME}}-${{ github.sha }}
           path: build/libs/*.jar  # 깃헙의 임시 리눅스 위치시킴
+
+      #----------------------------------------------------------------------------------#
+      # 8) 도커 이미지 빌드민 푸시  (GHCR : Github Container Registry 생성된 도커 이미지를 보관하는 깃헙 창고)
+      #           --imageName=?GHCR주소/이미지소유자/이미지명:이미지태그
+      #----------------------------------------------------------------------------------#
+      - name: Login to GHCR 도커 이미지 만들어서 GHCR에 보관(푸쉬)하기
+        if: github.event_name == 'push' # PR : Pull Request에서는 보통 GHCR 에 Dockerfile 을 저장하지 않기 위해.. 즉  push이벤트에 대해서만 GHCR에 로그인 시키겠음
+        uses: docker/login-action@v3 # 깃헙에서 자체적으로 만든 로그인용 툴
+        with:
+          registry: ${{ env.IMAGE_REGISTRY }} #GHCR 의 주소
+          username: ${{ github.actor }} # 지금 사용중인 github 사용자 정보
+          password: ${{ secrets.GITHUB_TOKEN  }} # 로그인에 사용중인 PAT
+
+
+      - name: Build OCI Image By 스프링 부트 제공 Buildpacks 이용 (Dokerfile 없이 이미즈를 생성하는 툴 )
+        run: |
+          ./gradlew bootBuildImage \
+          --imageName=${IMAGE_REGISTRY}/${IMAGE_OWNER}/${IMAGE_NAME}:${IMAGE_TAG}
+
+      - name: GHCR로 Push( 가상 리눅스에서 GHCR로 전송 )
+        if: github.event_name == 'push'
+        run: |
+          docker push ${IMAGE_REGISTRY}/${IMAGE_OWNER}/${IMAGE_NAME}:${IMAGE_TAG}
+        
