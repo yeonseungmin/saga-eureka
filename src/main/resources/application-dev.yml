@@ -1,0 +1,13 @@
+# src/main/resources/application.yml
+#dev 란 우리 개발자 pc 에서 사용되는 profile 임
+
+
+spring:
+  cloud:
+    config:
+      enabled: true
+
+
+  config:
+    import: "optional:configserver:http://localhost:8881"
+

@@ -1,4 +1,4 @@
-
+# src/main/resources/application.yml
 # 포트 번호는 깃헙 repo 에다가
 spring:
   application:
@@ -8,8 +8,10 @@ spring:
 #  profiles:
 #    active: dev
 
-  config:
-    import: "optional:configserver:http://localhost:8881"
+eureka:
+  client:
+    register-with-eureka: false
+    fetch-registry: false
 
 logging:
   level:

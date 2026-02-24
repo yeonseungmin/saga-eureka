@@ -1,0 +1,16 @@
+# src/main/resources/application.yml
+#dev 란 우리 개발자 pc 에서 사용되는 profile 임
+
+
+#  우리의 경우 , 도커 기반으로 모든 서비스 들을  띄워 놓은 상태이므로
+#  서로 간 통신을 IP 가 아닌
+# 도커의 내부 네트워크 명으로 진행하고 있으므로, 아래와 같은 코드는 에러
+# 유레카 서버가 Config-Server 를 못찾음
+spring:
+  cloud:
+    config:
+      enabled: true
+
+  config:
+    import: "optional:configserver:http://config-server:8881"
+
