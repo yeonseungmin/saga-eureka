@@ -33,6 +33,18 @@ dependencies {
     // Source: https://mvnrepository.com/artifact/io.micrometer/micrometer-registry-prometheus
     implementation "io.micrometer:micrometer-registry-prometheus"
     implementation 'org.springframework.boot:spring-boot-starter-actuator'
+
+    // 실제 코드용 Lombok
+    compileOnly 'org.projectlombok:lombok'
+    annotationProcessor 'org.projectlombok:lombok'
+
+    testCompileOnly 'org.projectlombok:lombok'
+    testAnnotationProcessor 'org.projectlombok:lombok'
+
+
+    implementation 'org.springframework.cloud:spring-cloud-config-server'
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
 
 dependencyManagement {
@@ -43,4 +55,16 @@ dependencyManagement {
 
 tasks.named('test') {
     useJUnitPlatform()
+}
+
+test{
+    useJUnitPlatform()
+
+    testLogging{
+        //테스트 실행 시 로그 이벤트 설정
+        events "passed","skipped","failed","standardOut","standardError"
+
+        // 상세로그 출력 여부
+        showStandardStreams =true
+    }
 }
